@@ -211,26 +211,28 @@ struct npc_pet_mage_mirror_image : CasterAI
 
         if (uint32 spellId = events.ExecuteEvent())
         {
-            switch (spellId) {
-                
-            case 59637:
-                //fireblast
-                events.RescheduleEvent(spellId, 6500);
-                break;
-                
-            case 56925:
-                // tendrils of frost
+            Player* owner = me->GetOwner()->ToPlayer();
+            uint8 specNo = owner->GetActiveSpec();
+
+            //arcane barrage
+            if (specNo == 1 && spellId == 44425) {
                 events.RescheduleEvent(spellId, 25000);
-                break;
-            default:
-                // frost bolt
-                events.RescheduleEvent(spellId, 2500);
-                break;
-
-
+                me->CastSpell(me->GetVictim(), spellId, false);
             }
-
-            me->CastSpell(me->GetVictim(), spellId, false);
+            // pyro blast
+            if (specNo == 2 && spellId == 11366) {
+                me->CastSpell(me->GetVictim(), spellId, false);
+            }
+            // tendrils of frost
+            if (specNo == 3 && spellId == 56925) {
+                me->CastSpell(me->GetVictim(), spellId, false);
+            }
+            // frost bolt all specs
+            if (spellId == 59638) {
+                me->CastSpell(me->GetVictim(), spellId, false);
+                events.RescheduleEvent(spellId, 2500);
+            }
+            
         }
     }
 };
