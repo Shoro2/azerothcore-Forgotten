@@ -212,13 +212,15 @@ struct npc_pet_mage_mirror_image : CasterAI
         if (uint32 spellId = events.ExecuteEvent())
         {
             switch (spellId) {
+                
+            case 59637:
                 //fireblast
                 events.RescheduleEvent(spellId, 6500);
-            case 59637:
                 break;
+                
+            case 56925:
                 // tendrils of frost
                 events.RescheduleEvent(spellId, 25000);
-            case 56925:
                 break;
             default:
                 // frost bolt
