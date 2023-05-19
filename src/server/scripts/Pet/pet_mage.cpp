@@ -211,7 +211,7 @@ struct npc_pet_mage_mirror_image : CasterAI
 
         if (uint32 spellId = events.ExecuteEvent())
         {
-            events.RescheduleEvent(spellId, spellId == 59637 ? 6500 : 2500);
+            events.RescheduleEvent(spellId, spellId == 24340 ? 6500 : 2500);
             me->CastSpell(me->GetVictim(), spellId, false);
         }
     }
