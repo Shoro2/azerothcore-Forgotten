@@ -214,23 +214,43 @@ struct npc_pet_mage_mirror_image : CasterAI
             Player* owner = me->GetOwner()->ToPlayer();
             uint8 specNo = owner->GetActiveSpec();
 
-            //arcane barrage
-            if (specNo == 1 && spellId == 44425) {
-                events.RescheduleEvent(spellId, 25000);
-                me->CastSpell(me->GetVictim(), spellId, false);
+            
+            if (specNo == 1){
+                //arcane barrage
+                if (spellId == 44425) {
+                    events.RescheduleEvent(spellId, 25000);
+                    me->CastSpell(me->GetVictim(), spellId, false);
+                }
+                //arcane blast
+                if (spellId == 30451) {
+                    events.RescheduleEvent(spellId, 2500);
+                    me->CastSpell(me->GetVictim(), spellId, false);
+                }
             }
-            // pyro blast
-            if (specNo == 2 && spellId == 11366) {
-                me->CastSpell(me->GetVictim(), spellId, false);
+            else if (specNo == 2) {
+                // pyro blast
+                if (spellId == 11366) {
+                    events.RescheduleEvent(spellId, 25000);
+                    me->CastSpell(me->GetVictim(), spellId, false);
+                }
+                //fire ball
+                if (spellId == 38692) {
+                    events.RescheduleEvent(spellId, 2500);
+                    me->CastSpell(me->GetVictim(), spellId, false);
+                }
             }
-            // tendrils of frost
-            if (specNo == 3 && spellId == 56925) {
-                me->CastSpell(me->GetVictim(), spellId, false);
-            }
-            // frost bolt all specs
-            if (spellId == 59638) {
-                me->CastSpell(me->GetVictim(), spellId, false);
-                events.RescheduleEvent(spellId, 2500);
+            
+            else if (specNo == 3) {
+                // tendrils of frost
+                if (spellId == 56925) {
+                    events.RescheduleEvent(spellId, 25000);
+                    me->CastSpell(me->GetVictim(), spellId, false);
+                }
+                // frost bolt all specs
+                if (spellId == 59638) {
+                    me->CastSpell(me->GetVictim(), spellId, false);
+                    events.RescheduleEvent(spellId, 2500);
+                }
             }
             
         }
