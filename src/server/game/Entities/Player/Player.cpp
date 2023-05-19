@@ -1845,6 +1845,8 @@ void Player::Regenerate(Powers power)
         return;
 
     float addvalue = 0.0f;
+    // get haste for energy regen
+    float myHaste = GetRatingBonusValue(CR_HASTE_MELEE);
 
     switch (power)
     {
@@ -1872,7 +1874,7 @@ void Player::Regenerate(Powers power)
             }
             break;
         case POWER_ENERGY:                                  // Regenerate energy (rogue)
-            addvalue += 0.01f * m_regenTimer * sWorld->getRate(RATE_POWER_ENERGY);
+            addvalue += ((0.01f * m_regenTimer) + CalculatePct(0.05f, myHaste)) * sWorld->getRate(RATE_POWER_ENERGY);
             break;
         case POWER_RUNIC_POWER:
             {
