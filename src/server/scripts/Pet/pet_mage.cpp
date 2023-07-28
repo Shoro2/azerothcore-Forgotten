@@ -223,7 +223,7 @@ struct npc_pet_mage_mirror_image : CasterAI
                 }
                 //arcane blast
                 if (spellId == 30451) {
-                    events.RescheduleEvent(spellId, 2500);
+                    events.RescheduleEvent(spellId, 2180);
                     me->CastSpell(me->GetVictim(), spellId, false);
                 }
             }
@@ -231,11 +231,11 @@ struct npc_pet_mage_mirror_image : CasterAI
                 // pyro blast
                 if (spellId == 11366) {
                     events.RescheduleEvent(spellId, 25000);
-                    me->CastSpell(me->GetVictim(), spellId, false);
+                    me->CastSpell(me->GetVictim(), spellId, true);
                 }
                 //fire ball
                 if (spellId == 38692) {
-                    events.RescheduleEvent(spellId, 2500);
+                    events.RescheduleEvent(spellId, 3050);
                     me->CastSpell(me->GetVictim(), spellId, false);
                 }
             }
