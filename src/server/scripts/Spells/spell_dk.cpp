@@ -429,7 +429,7 @@ class spell_dk_bloodworms : public SpellScript
 
     void HandleSummon(SpellEffIndex /*effIndex*/)
     {
-        SetEffectValue(irand(2, 4));
+        SetEffectValue(irand(4, 6));
     }
 
     void Register() override
@@ -1067,7 +1067,7 @@ class spell_dk_blood_gorged : public AuraScript
             return;
         }
 
-        int32 bp = static_cast<int32>(damageInfo->GetDamage() * 1.5f);
+        int32 bp = static_cast<int32>(damageInfo->GetDamage() * 0.2f);
         GetTarget()->CastCustomSpell(SPELL_DK_BLOOD_GORGED_HEAL, SPELLVALUE_BASE_POINT0, bp, _procTarget, true, nullptr, aurEff);
     }
 

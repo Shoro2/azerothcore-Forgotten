@@ -212,10 +212,10 @@ struct npc_pet_mage_mirror_image : CasterAI
         if (uint32 spellId = events.ExecuteEvent())
         {
             Player* owner = me->GetOwner()->ToPlayer();
-            uint8 specNo = owner->GetActiveSpec();
-
+            uint8 specNo = owner->GetSpec(owner->GetActiveSpec());
+            LOG_DEBUG("spells.scripts", "Active spec: {}", specNo);
             
-            if (specNo == 1){
+            if (specNo == TALENT_TREE_MAGE_ARCANE){
                 //arcane barrage
                 if (spellId == 44425) {
                     events.RescheduleEvent(spellId, 25000);
@@ -227,7 +227,7 @@ struct npc_pet_mage_mirror_image : CasterAI
                     me->CastSpell(me->GetVictim(), spellId, false);
                 }
             }
-            else if (specNo == 2) {
+            else if (specNo == TALENT_TREE_MAGE_FIRE) {
                 // pyro blast
                 if (spellId == 11366) {
                     events.RescheduleEvent(spellId, 25000);
@@ -240,7 +240,7 @@ struct npc_pet_mage_mirror_image : CasterAI
                 }
             }
             
-            else if (specNo == 3) {
+            else if (specNo == TALENT_TREE_MAGE_FROST) {
                 // tendrils of frost
                 if (spellId == 56925) {
                     events.RescheduleEvent(spellId, 25000);
