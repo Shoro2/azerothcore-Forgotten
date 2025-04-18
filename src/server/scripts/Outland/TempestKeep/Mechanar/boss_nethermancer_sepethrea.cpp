@@ -15,9 +15,12 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ScriptMgr.h"
+#include "CreatureScript.h"
 #include "ScriptedCreature.h"
+#include "SpellScriptLoader.h"
 #include "mechanar.h"
+#include "SpellAuraEffects.h"
+#include "SpellScript.h"
 
 enum Says
 {
@@ -46,31 +49,7 @@ enum Spells
 
 struct boss_nethermancer_sepethrea : public BossAI
 {
-    boss_nethermancer_sepethrea(Creature* creature) : BossAI(creature, DATA_NETHERMANCER_SEPRETHREA)
-    {
-        scheduler.SetValidator([this]
-        {
-            return !me->HasUnitState(UNIT_STATE_CASTING);
-        });
-    }
-
-    bool CanAIAttack(Unit const* target) const override
-    {
-        if (me->GetThreatMgr().GetThreatListSize() > 1)
-        {
-            ThreatContainer::StorageType::const_iterator lastRef = me->GetThreatMgr().GetOnlineContainer().GetThreatList().end();
-            --lastRef;
-            if (Unit* lastTarget = (*lastRef)->getTarget())
-            {
-                if (lastTarget != target)
-                {
-                    return !target->HasAura(SPELL_DRAGONS_BREATH);
-                }
-            }
-        }
-
-        return true;
-    }
+    boss_nethermancer_sepethrea(Creature* creature) : BossAI(creature, DATA_NETHERMANCER_SEPRETHREA) { }
 
     void JustEngagedWith(Unit*  /*who*/) override
     {
@@ -153,8 +132,12 @@ struct npc_raging_flames : public ScriptedAI
         if (TempSummon* summon = me->ToTempSummon())
             if (Creature* summoner = summon->GetSummonerCreatureBase())
                 if (summoner->IsAIEnabled)
+                {
                     if (Unit* target = summoner->AI()->SelectTarget(SelectTargetMethod::Random, 0, 100.0f, true, false))
                         me->AddThreat(target, 1000000.0f);
+                    else
+                        me->KillSelf();
+                }
     }
 
     void IsSummonedBy(WorldObject* /*summoner*/) override
@@ -165,7 +148,7 @@ struct npc_raging_flames : public ScriptedAI
 
         FixateRandomTarget();
 
-        _scheduler.Schedule(15s, 25s, [this](TaskContext task)
+        scheduler.Schedule(15s, 25s, [this](TaskContext task)
         {
             DoCastSelf(SPELL_INFERNO);
             FixateRandomTarget();
@@ -176,12 +159,12 @@ struct npc_raging_flames : public ScriptedAI
 
     void Reset() override
     {
-        _scheduler.CancelAll();
+        scheduler.CancelAll();
     }
 
     void EnterEvadeMode(EvadeReason /*why*/) override
     {
-        me->KillSelf();
+        FixateRandomTarget();
     }
 
     void UpdateAI(uint32 diff) override
@@ -189,13 +172,10 @@ struct npc_raging_flames : public ScriptedAI
         if (!UpdateVictim())
             return;
 
-        _scheduler.Update(diff);
+        scheduler.Update(diff);
 
         DoMeleeAttackIfReady();
     }
-
-private:
-    TaskScheduler _scheduler;
 };
 
 class spell_ragin_flames_inferno : public AuraScript

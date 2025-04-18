@@ -55,7 +55,7 @@ void FollowerAI::AttackStart(Unit* who)
         if (me->HasUnitState(UNIT_STATE_FOLLOW))
             me->ClearUnitState(UNIT_STATE_FOLLOW);
 
-        if (IsCombatMovementAllowed())
+        if (me->IsCombatMovementAllowed())
             me->GetMotionMaster()->MoveChase(who);
     }
 }
@@ -141,8 +141,8 @@ void FollowerAI::JustRespawned()
 {
     m_uiFollowState = STATE_FOLLOW_NONE;
 
-    if (!IsCombatMovementAllowed())
-        SetCombatMovement(true);
+    if (!me->IsCombatMovementAllowed())
+        me->SetCombatMovement(true);
 
     if (me->GetFaction() != me->GetCreatureTemplate()->faction)
         me->SetFaction(me->GetCreatureTemplate()->faction);
@@ -264,7 +264,7 @@ void FollowerAI::MovementInform(uint32 motionType, uint32 pointId)
     }
 }
 
-void FollowerAI::StartFollow(Player* player, uint32 factionForFollower, const Quest* quest)
+void FollowerAI::StartFollow(Player* player, uint32 factionForFollower, const Quest* quest, bool inheritWalkState, bool inheritSpeed)
 {
     if (me->GetVictim())
     {
@@ -297,7 +297,7 @@ void FollowerAI::StartFollow(Player* player, uint32 factionForFollower, const Qu
 
     AddFollowState(STATE_FOLLOW_INPROGRESS);
 
-    me->GetMotionMaster()->MoveFollow(player, PET_FOLLOW_DIST, PET_FOLLOW_ANGLE);
+    me->GetMotionMaster()->MoveFollow(player, PET_FOLLOW_DIST, PET_FOLLOW_ANGLE, MOTION_SLOT_ACTIVE, inheritWalkState, inheritSpeed);
 
     LOG_DEBUG("scripts.ai", "FollowerAI start follow {} ({})", player->GetName(), m_uiLeaderGUID.ToString());
 }

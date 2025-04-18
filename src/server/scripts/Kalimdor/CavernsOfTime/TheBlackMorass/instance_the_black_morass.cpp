@@ -15,12 +15,9 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "InstanceMapScript.h"
 #include "InstanceScript.h"
 #include "Player.h"
-#include "ScriptMgr.h"
-#include "ScriptedCreature.h"
-#include "SpellInfo.h"
-#include "TemporarySummon.h"
 #include "the_black_morass.h"
 
 const Position PortalLocation[4] =
@@ -31,9 +28,10 @@ const Position PortalLocation[4] =
     { -1930.9106f, 7183.5970f, 23.007639f, 3.59537f }
 };
 
-ObjectData const creatureData[1] =
+ObjectData const creatureData[] =
 {
-    { NPC_MEDIVH, DATA_MEDIVH }
+    { NPC_MEDIVH, DATA_MEDIVH },
+    { 0,          0           }
 };
 
 class instance_the_black_morass : public InstanceMapScript
@@ -76,7 +74,6 @@ public:
             // prevent getting stuck if event fails during boss break
             _noBossSpawnDelay = true;
 
-            instance->LoadGrid(-2023.0f, 7121.0f);
             if (Creature* medivh = GetCreature(DATA_MEDIVH))
             {
                 medivh->Respawn();
@@ -208,10 +205,12 @@ public:
                     {
                         if (_availableRiftPositions.size() > 1)
                         {
-                            spawnPos = Acore::Containers::SelectRandomContainerElementIf(_availableRiftPositions, [&](Position pos) -> bool
+                            auto spawnPosItr = Acore::Containers::SelectRandomContainerElementIf(_availableRiftPositions, [&](Position const& pos) -> bool
                             {
                                 return pos != lastPosition;
                             });
+                            if (spawnPosItr != _availableRiftPositions.end())
+                                spawnPos = *spawnPosItr;
                         }
                         else
                         {

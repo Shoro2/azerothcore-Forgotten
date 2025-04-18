@@ -15,11 +15,14 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "CreatureScript.h"
+#include "InstanceMapScript.h"
 #include "InstanceScript.h"
 #include "Player.h"
-#include "ScriptMgr.h"
-#include "TemporarySummon.h"
+#include "SpellScript.h"
+#include "SpellScriptLoader.h"
 #include "WorldPacket.h"
+#include "WorldStatePackets.h"
 #include "ruby_sanctum.h"
 
 BossBoundaryData const boundaries =
@@ -61,7 +64,6 @@ public:
         {
             if (GetBossState(DATA_HALION_INTRO_DONE) != DONE && GetBossState(DATA_GENERAL_ZARITHRIAN) == DONE)
             {
-                instance->LoadGrid(3156.0f, 537.0f);
                 if (Creature* halionController = instance->GetCreature(HalionControllerGUID))
                     halionController->AI()->DoAction(ACTION_INTRO_HALION);
             }
@@ -125,7 +127,7 @@ public:
                 case GO_BURNING_TREE_3:
                 case GO_BURNING_TREE_4:
                 case GO_TWILIGHT_FLAME_RING:
-                    AddDoor(go, true);
+                    AddDoor(go);
                     break;
                 case GO_FLAME_RING:
                     FlameRingGUID = go->GetGUID();
@@ -143,7 +145,7 @@ public:
                 case GO_BURNING_TREE_2:
                 case GO_BURNING_TREE_3:
                 case GO_BURNING_TREE_4:
-                    AddDoor(go, false);
+                    RemoveDoor(go);
                     break;
             }
         }
@@ -216,11 +218,12 @@ public:
             return true;
         }
 
-        void FillInitialWorldStates(WorldPacket& data) override
+        void FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet) override
         {
-            data << uint32(WORLDSTATE_CORPOREALITY_MATERIAL) << uint32(50);
-            data << uint32(WORLDSTATE_CORPOREALITY_TWILIGHT) << uint32(50);
-            data << uint32(WORLDSTATE_CORPOREALITY_TOGGLE) << uint32(0);
+            packet.Worldstates.reserve(3);
+            packet.Worldstates.emplace_back(WORLDSTATE_CORPOREALITY_MATERIAL, 50);
+            packet.Worldstates.emplace_back(WORLDSTATE_CORPOREALITY_TWILIGHT, 50);
+            packet.Worldstates.emplace_back(WORLDSTATE_CORPOREALITY_TOGGLE, 0);
         }
 
     protected:
@@ -242,40 +245,34 @@ public:
     }
 };
 
-class spell_ruby_sanctum_rallying_shout : public SpellScriptLoader
+class spell_ruby_sanctum_rallying_shout : public SpellScript
 {
-public:
-    spell_ruby_sanctum_rallying_shout() : SpellScriptLoader("spell_ruby_sanctum_rallying_shout") { }
+    PrepareSpellScript(spell_ruby_sanctum_rallying_shout);
 
-    class spell_ruby_sanctum_rallying_shout_SpellScript : public SpellScript
+    bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        PrepareSpellScript(spell_ruby_sanctum_rallying_shout_SpellScript);
+        return ValidateSpellInfo({ SPELL_RALLY });
+    }
 
-        void CountAllies()
-        {
-            uint32 count = GetSpell()->GetUniqueTargetInfo()->size();
-            if (count == GetCaster()->GetAuraCount(SPELL_RALLY))
-                return;
-
-            GetCaster()->RemoveAurasDueToSpell(SPELL_RALLY);
-            if (count > 0)
-                GetCaster()->CastCustomSpell(SPELL_RALLY, SPELLVALUE_AURA_STACK, count, GetCaster(), true);
-        }
-
-        void Register() override
-        {
-            AfterHit += SpellHitFn(spell_ruby_sanctum_rallying_shout_SpellScript::CountAllies);
-        }
-    };
-
-    SpellScript* GetSpellScript() const override
+    void CountAllies()
     {
-        return new spell_ruby_sanctum_rallying_shout_SpellScript();
+        uint32 count = GetSpell()->GetUniqueTargetInfo()->size();
+        if (count == GetCaster()->GetAuraCount(SPELL_RALLY))
+            return;
+
+        GetCaster()->RemoveAurasDueToSpell(SPELL_RALLY);
+        if (count > 0)
+            GetCaster()->CastCustomSpell(SPELL_RALLY, SPELLVALUE_AURA_STACK, count, GetCaster(), true);
+    }
+
+    void Register() override
+    {
+        AfterHit += SpellHitFn(spell_ruby_sanctum_rallying_shout::CountAllies);
     }
 };
 
 void AddSC_instance_ruby_sanctum()
 {
     new instance_ruby_sanctum();
-    new spell_ruby_sanctum_rallying_shout();
+    RegisterSpellScript(spell_ruby_sanctum_rallying_shout);
 }

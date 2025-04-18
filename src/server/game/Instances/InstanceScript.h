@@ -20,8 +20,10 @@
 
 #include "CreatureAI.h"
 #include "ObjectMgr.h"
+#include "TaskScheduler.h"
 #include "World.h"
 #include "ZoneScript.h"
+#include "WorldStatePackets.h"
 #include <set>
 
 #define OUT_SAVE_INST_DATA             LOG_DEBUG("scripts.ai", "Saving Instance Data for Instance {} (Map {}, Instance Id {})", instance->GetMapName(), instance->GetId(), instance->GetInstanceId())
@@ -51,7 +53,7 @@ enum EncounterFrameType
     ENCOUNTER_FRAME_REFRESH_FRAMES      = 7,    // Xinef: can be used to refresh frames after unit was destroyed from client and send back (phase changes)
 };
 
-enum EncounterState
+enum EncounterState : uint8
 {
     NOT_STARTED   = 0,
     IN_PROGRESS   = 1,
@@ -135,11 +137,12 @@ typedef std::pair<DoorInfoMap::const_iterator, DoorInfoMap::const_iterator> Door
 typedef std::map<uint32 /*entry*/, MinionInfo> MinionInfoMap;
 typedef std::map<uint32 /*type*/, ObjectGuid /*guid*/> ObjectGuidMap;
 typedef std::map<uint32 /*entry*/, uint32 /*type*/> ObjectInfoMap;
+typedef std::map<ObjectGuid::LowType /*spawnId*/, uint8 /*state*/> ObjectStateMap;
 
 class InstanceScript : public ZoneScript
 {
 public:
-    explicit InstanceScript(Map* map) : instance(map), completedEncounters(0) {}
+    explicit InstanceScript(Map* map) : instance(map), completedEncounters(0), _teamIdInInstance(TEAM_NEUTRAL) {}
 
     ~InstanceScript() override {}
 
@@ -159,7 +162,7 @@ public:
 
     void SaveToDB();
 
-    virtual void Update(uint32 /*diff*/) {}
+    virtual void Update(uint32 /*diff*/);
 
     //Used by the map's CanEnter function.
     //This is to prevent players from entering during boss encounters.
@@ -180,9 +183,15 @@ public:
     GameObject* GetGameObject(uint32 type);
 
     //Called when a player successfully enters the instance.
-    virtual void OnPlayerEnter(Player* /*player*/) {}
+    virtual void OnPlayerEnter(Player* /*player*/);
+
+    //Called when a player successfully leaves the instance.
+    virtual void OnPlayerLeave(Player* /*player*/);
 
     virtual void OnPlayerAreaUpdate(Player* /*player*/, uint32 /*oldArea*/, uint32 /*newArea*/) {}
+
+    //Called when a player enters/leaves water bodies.
+    virtual void OnPlayerInWaterStateUpdate(Player* /*player*/, bool /*inWater*/) {}
 
     //Handle open / close objects
     //use HandleGameObject(ObjectGuid::Empty, boolen, GO); in OnObjectCreate in instance scripts
@@ -194,6 +203,9 @@ public:
 
     //Respawns a GO having negative spawntimesecs in gameobject-table
     void DoRespawnGameObject(ObjectGuid guid, uint32 timeToDespawn = MINUTE);
+
+    // Respawns a GO by instance storage index
+    void DoRespawnGameObject(uint32 type);
 
     // Respawns a creature.
     void DoRespawnCreature(ObjectGuid guid, bool force = false);
@@ -249,7 +261,7 @@ public:
 
     void SendEncounterUnit(uint32 type, Unit* unit = nullptr, uint8 param1 = 0, uint8 param2 = 0);
 
-    virtual void FillInitialWorldStates(WorldPacket& /*data*/) {}
+    virtual void FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& /*packet*/) { }
 
     uint32 GetEncounterCount() const { return bosses.size(); }
 
@@ -263,6 +275,22 @@ public:
 
     // Allows executing code using all creatures registered in the instance script as minions
     void DoForAllMinions(uint32 id, std::function<void(Creature*)> exec);
+
+    //
+    void StoreGameObjectState(ObjectGuid::LowType spawnId, uint8 state) { _objectStateMap[spawnId] = state; };
+    [[nodiscard]] uint8 GetStoredGameObjectState(ObjectGuid::LowType spawnId) const;
+
+    void LoadInstanceSavedGameobjectStateData();
+
+    [[nodiscard]] bool IsBossDone(uint32 bossId) const { return GetBossState(bossId) == DONE; };
+    [[nodiscard]] bool AllBossesDone() const;
+    [[nodiscard]] bool AllBossesDone(std::initializer_list<uint32> bossIds) const;
+
+    TeamId GetTeamIdInInstance() const { return _teamIdInInstance; }
+    void SetTeamIdInInstance(TeamId teamId) { _teamIdInInstance = teamId; }
+    bool IsTwoFactionInstance() const;
+
+    TaskScheduler scheduler;
 protected:
     void SetHeaders(std::string const& dataHeaders);
     void SetBossNumber(uint32 number) { bosses.resize(number); }
@@ -271,13 +299,23 @@ protected:
     void LoadDoorData(DoorData const* data);
     void LoadMinionData(MinionData const* data);
     void LoadObjectData(ObjectData const* creatureData, ObjectData const* gameObjectData);
+    // Allows setting another creature as summoner for a creature.
+    // This is used to handle summons that are not directly controlled by the summoner.
+    // Summoner creature must be loaded in the instance data (LoadObjectData).
+    void LoadSummonData(ObjectData const* data);
+    void SetSummoner(Creature* creature);
 
-    void AddObject(Creature* obj, bool add);
-    void AddObject(GameObject* obj, bool add);
-    void AddObject(WorldObject* obj, uint32 type, bool add);
+    void AddObject(Creature* obj, bool add = true);
+    void RemoveObject(Creature* obj);
+    void AddObject(GameObject* obj, bool add = true);
+    void RemoveObject(GameObject* obj);
+    void AddObject(WorldObject* obj, uint32 type, bool add = true);
+    void RemoveObject(WorldObject* obj, uint32 type);
 
-    void AddDoor(GameObject* door, bool add);
-    void AddMinion(Creature* minion, bool add);
+    void AddDoor(GameObject* door, bool add = true);
+    void RemoveDoor(GameObject* door);
+    void AddMinion(Creature* minion, bool add = true);
+    void RemoveMinion(Creature* minion);
 
     void UpdateDoorState(GameObject* door);
     void UpdateMinionState(Creature* minion, EncounterState state);
@@ -302,8 +340,11 @@ private:
     MinionInfoMap minions;
     ObjectInfoMap _creatureInfo;
     ObjectInfoMap _gameObjectInfo;
+    ObjectInfoMap _summonInfo;
     ObjectGuidMap _objectGuids;
+    ObjectStateMap _objectStateMap;
     uint32 completedEncounters; // completed encounter mask, bit indexes are DungeonEncounter.dbc boss numbers, used for packets
+    TeamId _teamIdInInstance;
     std::unordered_set<uint32> _activatedAreaTriggers;
 };
 

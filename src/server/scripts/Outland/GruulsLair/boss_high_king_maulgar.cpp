@@ -15,10 +15,11 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ScriptMgr.h"
+#include "CreatureScript.h"
 #include "ScriptedCreature.h"
 #include "TaskScheduler.h"
 #include "gruuls_lair.h"
+#include "SpellMgr.h"
 
 enum HighKingMaulgar
 {
@@ -93,7 +94,7 @@ struct boss_high_king_maulgar : public BossAI
 
     void KilledUnit(Unit*  /*victim*/) override
     {
-        if(!_recentlySpoken)
+        if (!_recentlySpoken)
         {
             Talk(SAY_SLAY);
             _recentlySpoken = true;
@@ -259,6 +260,15 @@ struct boss_kiggler_the_crazed : public ScriptedAI
     {
         _scheduler.CancelAll();
         instance->SetBossState(DATA_MAULGAR, NOT_STARTED);
+    }
+
+    void AttackStart(Unit* who) override
+    {
+        if (!who)
+            return;
+
+        if (me->Attack(who, true))
+            me->GetMotionMaster()->MoveChase(who, 25.0f);
     }
 
     void JustEngagedWith(Unit* /*who*/) override

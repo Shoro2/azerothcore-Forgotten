@@ -15,10 +15,11 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "CreatureScript.h"
 #include "Player.h"
-#include "ScriptMgr.h"
 #include "ScriptedCreature.h"
 #include "SpellScript.h"
+#include "SpellScriptLoader.h"
 #include "naxxramas.h"
 
 enum Yells
@@ -91,12 +92,9 @@ public:
     struct boss_sapphironAI : public BossAI
     {
         explicit boss_sapphironAI(Creature* c) : BossAI(c, BOSS_SAPPHIRON)
-        {
-            pInstance = me->GetInstanceScript();
-        }
+        {}
 
         EventMap events;
-        InstanceScript* pInstance;
         uint8 iceboltCount{};
         uint32 spawnTimer{};
         GuidList blockList;
@@ -141,7 +139,7 @@ public:
             if (PlList.IsEmpty())
                 return;
 
-            for (const auto& i : PlList)
+            for (auto const& i : PlList)
             {
                 if (Player* player = i.GetSource())
                 {
@@ -220,10 +218,8 @@ public:
 
         void KilledUnit(Unit* who) override
         {
-            if (who->GetTypeId() == TYPEID_PLAYER && pInstance)
-            {
-                pInstance->SetData(DATA_IMMORTAL_FAIL, 0);
-            }
+            if (who->IsPlayer())
+                instance->StorePersistentData(PERSISTENT_DATA_IMMORTAL_FAIL, 1);
         }
 
         void UpdateAI(uint32 diff) override
@@ -324,7 +320,7 @@ public:
                         auto i = me->GetThreatMgr().GetThreatList().begin();
                         for (; i != me->GetThreatMgr().GetThreatList().end(); ++i)
                         {
-                            if ((*i)->getTarget()->GetTypeId() == TYPEID_PLAYER)
+                            if ((*i)->getTarget()->IsPlayer())
                             {
                                 bool inList = false;
                                 if (!blockList.empty())
@@ -399,11 +395,11 @@ public:
                 case EVENT_HUNDRED_CLUB:
                     {
                         Map::PlayerList const& pList = me->GetMap()->GetPlayers();
-                        for (const auto& itr : pList)
+                        for (auto const& itr : pList)
                         {
-                            if (itr.GetSource()->GetResistance(SPELL_SCHOOL_FROST) > 100 && pInstance)
+                            if (itr.GetSource()->GetResistance(SPELL_SCHOOL_FROST) > 100)
                             {
-                                pInstance->SetData(DATA_HUNDRED_CLUB, 0);
+                                instance->SetData(DATA_HUNDRED_CLUB, 0);
                                 return;
                             }
                         }
@@ -416,50 +412,39 @@ public:
     };
 };
 
-class spell_sapphiron_frost_explosion : public SpellScriptLoader
+class spell_sapphiron_frost_explosion : public SpellScript
 {
-public:
-    spell_sapphiron_frost_explosion() : SpellScriptLoader("spell_sapphiron_frost_explosion") { }
+    PrepareSpellScript(spell_sapphiron_frost_explosion);
 
-    class spell_sapphiron_frost_explosion_SpellScript : public SpellScript
+    void FilterTargets(std::list<WorldObject*>& targets)
     {
-        PrepareSpellScript(spell_sapphiron_frost_explosion_SpellScript);
+        Unit* caster = GetCaster();
+        if (!caster || !caster->ToCreature())
+            return;
 
-        void FilterTargets(std::list<WorldObject*>& targets)
+        std::list<WorldObject*> tmplist;
+        for (auto& target : targets)
         {
-            Unit* caster = GetCaster();
-            if (!caster || !caster->ToCreature())
-                return;
-
-            std::list<WorldObject*> tmplist;
-            for (auto& target : targets)
+            if (CAST_AI(boss_sapphiron::boss_sapphironAI, caster->ToCreature()->AI())->IsValidExplosionTarget(target))
             {
-                if (CAST_AI(boss_sapphiron::boss_sapphironAI, caster->ToCreature()->AI())->IsValidExplosionTarget(target))
-                {
-                    tmplist.push_back(target);
-                }
-            }
-            targets.clear();
-            for (auto& itr : tmplist)
-            {
-                targets.push_back(itr);
+                tmplist.push_back(target);
             }
         }
-
-        void Register() override
+        targets.clear();
+        for (auto& itr : tmplist)
         {
-            OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_sapphiron_frost_explosion_SpellScript::FilterTargets, EFFECT_0, TARGET_UNIT_DEST_AREA_ENEMY);
+            targets.push_back(itr);
         }
-    };
+    }
 
-    SpellScript* GetSpellScript() const override
+    void Register() override
     {
-        return new spell_sapphiron_frost_explosion_SpellScript();
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_sapphiron_frost_explosion::FilterTargets, EFFECT_0, TARGET_UNIT_DEST_AREA_ENEMY);
     }
 };
 
 void AddSC_boss_sapphiron()
 {
     new boss_sapphiron();
-    new spell_sapphiron_frost_explosion();
+    RegisterSpellScript(spell_sapphiron_frost_explosion);
 }
